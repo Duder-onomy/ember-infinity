@@ -188,31 +188,7 @@ test('hideOnInfinity => true : it will hide itself when inifinity is reached', f
   assert.notOk(component.get('isVisible'));
 });
 
-test('hideOnInfinity => false : it will not hide itself when inifinity is reached', function(assert) {
-  assert.expect(2);
-
-  var infinityModelStub = [
-    {id: 1, name: 'Tomato'},
-    {id: 2, name: 'Potato'}
-  ];
-
-  var component = this.subject({
-    infinityModel: infinityModelStub,
-    hideOnInfinity: false,
-  });
-
-  this.render();
-
-  assert.ok(component.get('isVisible'));
-
-  Ember.run(function() {
-    component.set('infinityModel.reachedInfinity', true);
-  });
-
-  assert.ok(component.get('isVisible'));
-});
-
-test('hideOnInfinity : when not passed will default to false and not hide the loader', function(assert) {
+test('hideOnInfinity : will default to false and not hide the loader', function(assert) {
   assert.expect(3);
 
   var infinityModelStub = [
@@ -227,6 +203,7 @@ test('hideOnInfinity : when not passed will default to false and not hide the lo
   this.render();
 
   assert.ok(component.get('isVisible'));
+
   assert.notOk(component.get('hideOnInfinity'));
 
   Ember.run(function() {
