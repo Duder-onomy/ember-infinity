@@ -9,7 +9,7 @@ const InfinityLoaderComponent = Ember.Component.extend({
   loadMoreAction: 'infinityLoad',
   loadingText: 'Loading Infinite Model...',
   loadedText: 'Infinite Model Entirely Loaded.',
-  destroyOnInfinity: false,
+  hideOnInfinity: false,
   developmentMode: false,
   scrollable: null,
   triggerOffset: 0,
@@ -141,9 +141,9 @@ const InfinityLoaderComponent = Ember.Component.extend({
     }
   },
 
-  loadedStatusDidChange: Ember.observer('infinityModelContent.reachedInfinity', 'destroyOnInfinity', function () {
-    if (this.get('infinityModelContent.reachedInfinity') && this.get('destroyOnInfinity')) {
-      this.destroy();
+  loadedStatusDidChange: Ember.observer('infinityModelContent.reachedInfinity', 'hideOnInfinity', function () {
+    if (this.get('infinityModelContent.reachedInfinity') && this.get('hideOnInfinity')) {
+      this.set('isVisible', false);
     }
   }),
 
