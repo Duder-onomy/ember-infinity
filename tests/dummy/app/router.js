@@ -21,6 +21,7 @@ Router.map(function() {
   this.route('nested');
   this.route('nested-component');
   this.route('extended');
+  this.route('non-blocking-model-single-page-results');
 });
 
 export default Router;

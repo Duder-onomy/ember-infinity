@@ -1,0 +1,15 @@
+<h2 id="posts-title">Non Blocking Model + Single Page of Results Test</h2>
+
+<ul id="test-list" class="test-list test-list-scrollable">
+  {{#each model.posts as |post|}}
+    <li>{{post.name}}</li>
+  {{/each}}
+
+  {{infinity-loader
+    infinityModel=model.posts
+    hideOnInfinity=true
+    loadingText="loading"
+    loadedText="loaded"
+    scrollable="#test-list"
+  }}
+</ul>
