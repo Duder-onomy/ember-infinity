@@ -1,11 +1,11 @@
-import { alias } from '@ember/object/computed';
-import InfinityPromiseArray from 'ember-infinity/lib/infinity-promise-array';
-import InViewportMixin from 'ember-in-viewport';
-import { run } from '@ember/runloop';
-import { get, set, computed, defineProperty } from '@ember/object';
-import Component from '@ember/component';
+import { get, set } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { resolve } from 'rsvp';
+import { run } from '@ember/runloop';
+import Component from '@ember/component';
+import InViewportMixin from 'ember-in-viewport';
+import ObjectProxy from '@ember/object/proxy';
+import PromiseProxyMixin from '@ember/object/promise-proxy-mixin';
 
 const InfinityLoaderComponent = Component.extend(InViewportMixin, {
   infinity: service(),
@@ -86,14 +86,6 @@ const InfinityLoaderComponent = Component.extend(InViewportMixin, {
     });
   },
 
-  willInsertElement() {
-    if (get(this, '_isInfinityPromiseArray')) {
-      defineProperty(this, 'infinityModelContent', alias('infinityModel.promise'));
-    } else {
-      defineProperty(this, 'infinityModelContent', alias('infinityModel'));
-    }
-  },
-
   /**
    * setup ember-in-viewport properties
    *
@@ -102,15 +94,23 @@ const InfinityLoaderComponent = Component.extend(InViewportMixin, {
   didInsertElement() {
     this._super(...arguments);
 
-    this._loadStatusDidChange();
-    this.addObserver('infinityModelContent.reachedInfinity', this, this._loadStatusDidChange);
-    this.addObserver('hideOnInfinity', this, this._loadStatusDidChange);
+    let ObjectPromiseProxy = ObjectProxy.extend(PromiseProxyMixin);
 
-    let scrollableArea = get(this, 'scrollable');
-    let infinityModel = get(this, 'infinityModelContent');
-    if (infinityModel) {
-      set(infinityModel, '_scrollable', scrollableArea);
-    }
+    set(this, 'infinityModelContent', ObjectPromiseProxy.create({
+      promise: get(this, 'infinityModel'),
+    }));
+
+    get(this, 'infinityModelContent').then(() => {
+      this._loadStatusDidChange();
+      this.addObserver('infinityModelContent.reachedInfinity', this, this._loadStatusDidChange);
+      this.addObserver('hideOnInfinity', this, this._loadStatusDidChange);
+
+      let scrollableArea = get(this, 'scrollable');
+      let infinityModel = get(this, 'infinityModelContent');
+      if (infinityModel) {
+        set(infinityModel, '_scrollable', scrollableArea);
+      }
+    });
   },
 
   willDestroyElement() {
@@ -119,10 +119,6 @@ const InfinityLoaderComponent = Component.extend(InViewportMixin, {
     this.removeObserver('infinityModelContent.reachedInfinity', this, this._loadStatusDidChange);
     this.removeObserver('hideOnInfinity', this, this._loadStatusDidChange);
   },
-
-  _isInfinityPromiseArray: computed('infinityModel', function() {
-    return (get(this, 'infinityModel') instanceof InfinityPromiseArray);
-  }),
 
   /**
    * https://github.com/DockYard/ember-in-viewport#didenterviewport-didexitviewport
