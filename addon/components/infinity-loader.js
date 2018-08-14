@@ -1,9 +1,9 @@
+import InViewportMixin from 'ember-in-viewport';
+import { run } from '@ember/runloop';
 import { get, set } from '@ember/object';
+import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { resolve } from 'rsvp';
-import { run } from '@ember/runloop';
-import Component from '@ember/component';
-import InViewportMixin from 'ember-in-viewport';
 import ObjectProxy from '@ember/object/proxy';
 import PromiseProxyMixin from '@ember/object/promise-proxy-mixin';
 
@@ -86,6 +86,15 @@ const InfinityLoaderComponent = Component.extend(InViewportMixin, {
     });
   },
 
+  willInsertElement() {
+    let ObjectPromiseProxy = ObjectProxy.extend(PromiseProxyMixin);
+    let proxy = ObjectPromiseProxy.create({
+      promise: resolve(get(this, 'infinityModel')),
+    });
+
+    set(this, 'infinityModelContent', proxy);
+  },
+
   /**
    * setup ember-in-viewport properties
    *
@@ -94,30 +103,28 @@ const InfinityLoaderComponent = Component.extend(InViewportMixin, {
   didInsertElement() {
     this._super(...arguments);
 
-    let ObjectPromiseProxy = ObjectProxy.extend(PromiseProxyMixin);
+    get(this, 'infinityModelContent')
+      .then(() => {
+        this._loadStatusDidChange();
+        this.addObserver('infinityModelContent.reachedInfinity', this, this._loadStatusDidChange);
+        this.addObserver('hideOnInfinity', this, this._loadStatusDidChange);
 
-    set(this, 'infinityModelContent', ObjectPromiseProxy.create({
-      promise: get(this, 'infinityModel'),
-    }));
-
-    get(this, 'infinityModelContent').then(() => {
-      this._loadStatusDidChange();
-      this.addObserver('infinityModelContent.reachedInfinity', this, this._loadStatusDidChange);
-      this.addObserver('hideOnInfinity', this, this._loadStatusDidChange);
-
-      let scrollableArea = get(this, 'scrollable');
-      let infinityModel = get(this, 'infinityModelContent');
-      if (infinityModel) {
-        set(infinityModel, '_scrollable', scrollableArea);
-      }
-    });
+        let scrollableArea = get(this, 'scrollable');
+        let infinityModel = get(this, 'infinityModelContent');
+        if (infinityModel) {
+          set(infinityModel, '_scrollable', scrollableArea);
+        }
+      });
   },
 
   willDestroyElement() {
     this._super(...arguments);
     this._cancelTimers();
-    this.removeObserver('infinityModelContent.reachedInfinity', this, this._loadStatusDidChange);
-    this.removeObserver('hideOnInfinity', this, this._loadStatusDidChange);
+    get(this, 'infinityModelContent')
+      .then(() => {
+        this.removeObserver('infinityModelContent.reachedInfinity', this, this._loadStatusDidChange);
+        this.removeObserver('hideOnInfinity', this, this._loadStatusDidChange);
+      });
   },
 
   /**
@@ -154,9 +161,12 @@ const InfinityLoaderComponent = Component.extend(InViewportMixin, {
    * @method loadedStatusDidChange
    */
   _loadStatusDidChange() {
-    if (get(this, 'infinityModelContent.reachedInfinity') && get(this, 'hideOnInfinity')) {
-      set(this, 'isVisible', false);
-    }
+    get(this, 'infinityModelContent')
+      .then(() => {
+        if (get(this, 'infinityModelContent.reachedInfinity') && get(this, 'hideOnInfinity')) {
+          set(this, 'isVisible', false);
+        }
+      });
   },
 
   /**
@@ -169,20 +179,22 @@ const InfinityLoaderComponent = Component.extend(InViewportMixin, {
      This debounce is needed when there is not enough delay between onScrolledToBottom calls.
      Without this debounce, all rows will be rendered causing immense performance problems
      */
-    const infinityModelContent = get(this, 'infinityModelContent');
+    // const infinityModelContent = get(this, 'infinityModelContent');
+    get(this, 'infinityModelContent')
+      .then((infinityModelContent) => {
+        function loadPreviousPage() {
+          if (typeof(get(this, 'infinityLoad')) === 'function') {
+            // closure action
+            return get(this, 'infinityLoad')(infinityModelContent, -1);
+          } else {
+            get(this, 'infinity').infinityLoad(infinityModelContent, -1)
+          }
+        }
 
-    function loadPreviousPage() {
-      if (typeof(get(this, 'infinityLoad')) === 'function') {
-        // closure action
-        return get(this, 'infinityLoad')(infinityModelContent, -1);
-      } else {
-        get(this, 'infinity').infinityLoad(infinityModelContent, -1)
-      }
-    }
-
-    if (get(infinityModelContent, 'firstPage') > 1 && get(infinityModelContent, 'currentPage') > 0) {
-      this._debounceTimer = run.debounce(this, loadPreviousPage, get(this, 'eventDebounce'));
-    }
+        if (get(infinityModelContent, 'firstPage') > 1 && get(infinityModelContent, 'currentPage') > 0) {
+          this._debounceTimer = run.debounce(this, loadPreviousPage, get(this, 'eventDebounce'));
+        }
+      });
   },
 
   /**
@@ -193,27 +205,30 @@ const InfinityLoaderComponent = Component.extend(InViewportMixin, {
      This debounce is needed when there is not enough delay between onScrolledToBottom calls.
      Without this debounce, all rows will be rendered causing immense performance problems
      */
-    function loadMore() {
-      // resolve to create thennable
-      // type is <InfinityModel|Promise|null>
-      let infinityModelContent = resolve(get(this, 'infinityModelContent'));
+    get(this, 'infinityModelContent')
+      .then(() => {
+        function loadMore() {
+          // resolve to create thennable
+          // type is <InfinityModel|Promise|null>
+          let infinityModelContent = resolve(get(this, 'infinityModelContent'));
 
-      infinityModelContent.then((content) => {
-        if (typeof(get(this, 'infinityLoad')) === 'function') {
-          // closure action (if you need to perform some other logic)
-          return get(this, 'infinityLoad')(content);
-        } else {
-          // service action
-          get(this, 'infinity').infinityLoad(content, 1)
-            .then(() => {
-              if (get(content, '_canLoadMore')) {
-                this._checkScrollableHeight();
-              }
-            });
+          infinityModelContent.then((content) => {
+            if (typeof(get(this, 'infinityLoad')) === 'function') {
+              // closure action (if you need to perform some other logic)
+              return get(this, 'infinityLoad')(content);
+            } else {
+              // service action
+              get(this, 'infinity').infinityLoad(content, 1)
+                .then(() => {
+                  if (get(content, '_canLoadMore')) {
+                    this._checkScrollableHeight();
+                  }
+                });
+            }
+          });
         }
+        this._debounceTimer = run.debounce(this, loadMore, get(this, 'eventDebounce'));
       });
-    }
-    this._debounceTimer = run.debounce(this, loadMore, get(this, 'eventDebounce'));
   },
 
   /**
