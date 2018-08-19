@@ -9,6 +9,7 @@ const Router = EmberRouter.extend({
 Router.map(function() {
   this.route('custom-store');
   this.route('non-blocking-model');
+  this.route('non-blocking-model-single-page-results');
   this.route('demo', { path: '/' });
   this.route('demo-scrollable', { path: '/demo-scrollable' });
   this.route('home', { path: 'test' });

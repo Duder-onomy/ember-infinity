@@ -4,6 +4,7 @@ import { computed, get, set, getProperties } from '@ember/object';
 import { objectAssign } from '../utils';
 import { typeOf } from '@ember/utils';
 import { resolve } from 'rsvp';
+import Evented from '@ember/object/evented';
 
 /**
   @class InfinityModel
@@ -11,7 +12,7 @@ import { resolve } from 'rsvp';
   @module ember-infinity/lib/infinity-model
   @extends Ember.ArrayProxy
 */
-export default ArrayProxy.extend({
+export default ArrayProxy.extend(Evented, {
   /**
     @public
     @property store

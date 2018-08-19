@@ -381,7 +381,7 @@ export default Service.extend({
 
     let newObjects;
     if (infinityModel.get('_increment') === 1) {
-       newObjects = infinityModel.pushObjects(queryObject.toArray());
+      newObjects = infinityModel.pushObjects(queryObject.toArray());
     } else {
       newObjects = infinityModel.unshiftObjects(queryObject.toArray());
     }
@@ -400,6 +400,7 @@ export default Service.extend({
   _notifyInfinityModelLoaded(infinityModel) {
     const totalPages = get(this, '_totalPages');
     scheduleOnce('afterRender', infinityModel, 'infinityModelLoaded', { totalPages: totalPages });
+    scheduleOnce('afterRender', this, () => infinityModel.trigger('infinityModelLoader', infinityModel));
   },
 
   /**
