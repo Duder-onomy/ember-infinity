@@ -399,8 +399,10 @@ export default Service.extend({
    */
   _notifyInfinityModelLoaded(infinityModel) {
     const totalPages = get(this, '_totalPages');
-    scheduleOnce('afterRender', infinityModel, 'infinityModelLoaded', { totalPages: totalPages });
-    scheduleOnce('afterRender', this, () => infinityModel.trigger('infinityModelLoader', infinityModel));
+    scheduleOnce('afterRender', this, () => {
+      infinityModel.infinityModelLoaded({ totalPages: totalPages });
+      infinityModel.trigger('infinityModelLoaded', { totalPages: totalPages });
+    });
   },
 
   /**
@@ -414,7 +416,10 @@ export default Service.extend({
   _notifyInfinityModelUpdated(queryObject, infinityModel) {
     const totalPages = get(this, '_totalPages');
     const lastPageLoaded = get(infinityModel, 'currentPage');
-    scheduleOnce('afterRender', infinityModel, 'infinityModelUpdated', { lastPageLoaded, totalPages, queryObject });
+    scheduleOnce('afterRender', this, () => {
+      infinityModel.infinityModelUpdated({ lastPageLoaded, totalPages, queryObject });
+      infinityModel.trigger('infinityModelUpdated', { lastPageLoaded, totalPages, queryObject });
+    });
   },
 
   /**

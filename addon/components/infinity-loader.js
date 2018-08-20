@@ -1,6 +1,7 @@
+import InfinityPromiseArray from 'ember-infinity/lib/infinity-promise-array';
 import InViewportMixin from 'ember-in-viewport';
 import { run } from '@ember/runloop';
-import { get, set, computed, setProperties } from '@ember/object';
+import { get, set, computed } from '@ember/object';
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { resolve } from 'rsvp';
@@ -68,9 +69,9 @@ const InfinityLoaderComponent = Component.extend(InViewportMixin, {
    */
   isVisible: true,
   /**
-   * if the infinityModel has reachedInfinity
+   * proxy of infinityModel.reachedInfinity
    *
-   * @property isVisible
+   * @property reachedInfinity
    */
   reachedInfinity: false,
 
@@ -102,23 +103,34 @@ const InfinityLoaderComponent = Component.extend(InViewportMixin, {
   didInsertElement() {
     this._super(...arguments);
 
-    this._loadStatusDidChange();
-    // this.addObserver('infinityModelContent.reachedInfinity', this, this._loadStatusDidChange);
     this.addObserver('hideOnInfinity', this, this._loadStatusDidChange);
 
-    let scrollableArea = get(this, 'scrollable');
-    let infinityModel = get(this, 'infinityModel');
-    if (infinityModel) {
-      set(infinityModel, '_scrollable', scrollableArea);
-    }
+    get(this, 'infinityModelContent')
+      .then((infinityModel) => {
+        this._loadStatusDidChange();
+        infinityModel.on('infinityModelLoaded', this, this._loadStatusDidChange);
+
+        let scrollableArea = get(this, 'scrollable');
+        run(this, () => set(infinityModel, '_scrollable', scrollableArea));
+      });
   },
 
   willDestroyElement() {
     this._super(...arguments);
+
     this._cancelTimers();
-    // this.removeObserver('infinityModelContent.reachedInfinity', this, this._loadStatusDidChange);
+
     this.removeObserver('hideOnInfinity', this, this._loadStatusDidChange);
+
+    get(this, 'infinityModelContent')
+      .then((infinityModel) => {
+        infinityModel.off('infinityModelLoaded', this, this._loadStatusDidChange);
+      });
   },
+
+  _isInfinityPromiseArray: computed('infinityModel', function() {
+    return (get(this, 'infinityModel') instanceof InfinityPromiseArray);
+  }),
 
   /**
    * https://github.com/DockYard/ember-in-viewport#didenterviewport-didexitviewport
@@ -158,7 +170,7 @@ const InfinityLoaderComponent = Component.extend(InViewportMixin, {
       .then((infinityModel) => {
         if (get(infinityModel, 'reachedInfinity') && get(this, 'hideOnInfinity')) {
           run(this, () => {
-            setProperties(this, {
+            this.setProperties({
               isVisible: false,
               reachedInfinity: true,
             });
@@ -177,20 +189,20 @@ const InfinityLoaderComponent = Component.extend(InViewportMixin, {
      This debounce is needed when there is not enough delay between onScrolledToBottom calls.
      Without this debounce, all rows will be rendered causing immense performance problems
      */
-    const infinityModelContent = get(this, 'infinityModelContent');
-
-    function loadPreviousPage() {
+    function loadPreviousPage(content) {
       if (typeof(get(this, 'infinityLoad')) === 'function') {
         // closure action
-        return get(this, 'infinityLoad')(infinityModelContent, -1);
+        return get(this, 'infinityLoad')(content, -1);
       } else {
-        get(this, 'infinity').infinityLoad(infinityModelContent, -1)
+        get(this, 'infinity').infinityLoad(content, -1)
       }
     }
 
-    if (get(infinityModelContent, 'firstPage') > 1 && get(infinityModelContent, 'currentPage') > 0) {
-      this._debounceTimer = run.debounce(this, loadPreviousPage, get(this, 'eventDebounce'));
-    }
+    get(this, 'infinityModelContent').then((content) => {
+      if (get(content, 'firstPage') > 1 && get(content, 'currentPage') > 0) {
+        this._debounceTimer = run.debounce(this, loadPreviousPage, content, get(this, 'eventDebounce'));
+      }
+    })
   },
 
   /**
@@ -204,9 +216,7 @@ const InfinityLoaderComponent = Component.extend(InViewportMixin, {
     function loadMore() {
       // resolve to create thennable
       // type is <InfinityModel|Promise|null>
-      let infinityModelContent = resolve(get(this, 'infinityModelContent'));
-
-      infinityModelContent.then((content) => {
+      get(this, 'infinityModelContent').then((content) => {
         if (typeof(get(this, 'infinityLoad')) === 'function') {
           // closure action (if you need to perform some other logic)
           return get(this, 'infinityLoad')(content);

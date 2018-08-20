@@ -497,9 +497,9 @@ So relating this to the examples above... In the first example, `afterInfinityMo
 does not have an explicit return defined so the original posts promise result is used.
 In the second example, the returned collection of authors is used.
 
-### Model Event Hooks
+### Model Events and Hooks
 
-The infinity model also provides following event hooks:
+The infinity model also provides following events and hooks:
 
 **infinityModelUpdated**
 
@@ -538,7 +538,19 @@ const ExtendedInfinityModel = InfinityModel.extend({
 export default Route.extend({
   model() {
     return this.infinity.model('product', { perPage: 12, startingPage: 1 }, ExtendedInfinityModel);
-  }
+  },
+  afterModel(model, transition) {
+    this._super(model, transition);
+
+    model.on('infinityModelUpdated', this, this.onInfinityModelUpdated);
+    model.off('infinityModelLoaded', this, this.onInfinityModelLoaded);
+  },
+  onInfinityModelUpdated({ lastPageLoaded, totalPages, newObjects }) {
+    Ember.Logger.debug('updated with more items');
+  },
+  onInfinityModelLoaded({ totalPages }) {
+    Ember.Logger.debug('updated with more items');
+  },
 }
 ```
 
